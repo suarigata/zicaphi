@@ -44,6 +44,16 @@ static float get_midpoint(su_trace_t *tr)
 	return sqrt(mx * mx + my * my);
 }
 
+static float get_scalco(su_trace_t *tr)
+{
+        if (tr->scalco == 0)
+                return 1;
+        if (tr->scalco > 0)
+                return tr->scalco;
+        return 1.0f / tr->scalco;
+}
+
+
 float semblance_2d(aperture_t *ap,
 		float A, float B, float C,
 		int t0s, float m0x, float m0y,
@@ -64,8 +74,17 @@ float semblance_2d(aperture_t *ap,
 	for (int i = 0; i < ap->traces.len; i++) {
 		tr = vector_get(ap->traces, i);
 		float mx, my, hx, hy;
-		su_get_midpoint(tr, &mx, &my);
-		su_get_halfoffset(tr, &hx, &hy);
+		float a= get_scalco(tr)*0.5;
+		//float gx = tr->gx;
+		//float gy = tr->gy;
+		//float sx = tr->sx;
+		//float sy = tr->sy;
+		mx=(tr->gx+tr->sx)*a;
+		my=(tr->gy+tr->sy)*a;
+		hx=(tr->gx-tr->sx)*a;
+		hy=(tr->gy-tr->sy)*a;
+	//	su_get_midpoint(tr, &mx, &my);
+	//	su_get_halfoffset(tr, &hx, &hy);
 		float t = time2d(A, B, C, t0, m0x, m0y, mx, my, hx, hy);
 		int it = (int)(t * idt);
 		if (it - tau >= 0 && it + tau < tr->ns) {
