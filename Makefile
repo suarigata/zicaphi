@@ -5,7 +5,7 @@
 #***************************************************************************
 
 # C Compiler
-CC=gcc
+CC=icc
 # Compiler flags
 CFLAGS=-O3 -std=gnu99 -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -fopenmp
 LINK_FLAGS=-fopenmp -lm 

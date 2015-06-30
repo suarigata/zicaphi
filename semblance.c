@@ -71,9 +71,10 @@ float semblance_2d(aperture_t *ap,
 		if (it - tau >= 0 && it + tau < tr->ns) {
 			for (int j = 0; j < w; j++) {
 				int k = it + j - tau;
-				float v = interpol_linear(k, k+1,
-						tr->data[k], tr->data[k+1],
-						t*idt + j - tau);
+				//float v = interpol_linear(k, k+1,
+				//		tr->data[k], tr->data[k+1],
+				//		t*idt + j - tau);
+				float v=(tr->data[k+1] - tr->data[k]) * (t*idt+j-tau - k) + tr->data[k];
 				num[j] += v;
 				den[j] += v*v;
 				_stack += v;

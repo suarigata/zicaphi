@@ -3,3 +3,8 @@
 *.su
 .DS_Store
 ._.DS_Store
+*.dyn
+*.data
+*.data.old
+*.dpi.lock
+*.dpi
