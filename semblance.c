@@ -12,6 +12,13 @@
 #include <utils.h>
 #include <interpol.h>
 
+static float time2d (float A, float B, float C, float t0,
+                float m0x, float m0y,
+                float mx, float my,
+                float hx, float hy) __attribute__ ((const));
+
+//XXX pure function
+
 static float time2d(float A, float B, float C, float t0,
 		float m0x, float m0y,
 		float mx, float my,
@@ -54,6 +61,11 @@ static float get_scalco(su_trace_t *tr)
 }
 
 
+/* POINTER ALIASING, RESTRICT
+float semblance_2d(aperture_t* __restrict ap,
+		float A, float B, float C,
+		int t0s, float m0x, float m0y,
+		float* __restrict stack)*/
 float semblance_2d(aperture_t *ap,
 		float A, float B, float C,
 		int t0s, float m0x, float m0y,
@@ -70,8 +82,8 @@ float semblance_2d(aperture_t *ap,
 	memset(&den[0], 0, sizeof(den));
 	int M = 0, skip = 0;
 	float _stack = 0;
-
-	for (int i = 0; i < ap->traces.len; i++) {
+	int teste = ap->traces.len;
+	for (int i = 0; i < teste; i++) {
 		tr = vector_get(ap->traces, i);
 		float mx, my, hx, hy;
 		float a= get_scalco(tr)*0.5;

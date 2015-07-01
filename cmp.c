@@ -21,21 +21,24 @@ struct cdp_traces {
 	UT_hash_handle hh;
 };
 
-float getmax_C(aperture_t *ap, int t0s, float c0, float c1, int nc, float *sem, float *stack)
+float getmax_C(aperture_t *ap, int t0s, float c0, float c1, int nc, float *sem, float *stack, float *C)
 {
 	float Copt;
 	float smax = 0;
 	float _stack = 0;
+	/*
+	LOOP INVARIANT CODE MOTION XXX
+	*/
 	//float Cconst = (c1 - c0)  / nc; // XXX strength reduction
 	float m0x, m0y;
 	su_get_midpoint(ap->traces.a[0], &m0x, &m0y); // XXX loop invariant code motion
 	//float C = c0;
 	for (int i = 0; i < nc; i++) {
-		float C = c0 + (c1 - c0) * i / nc;
-		float s = semblance_2d(ap, 0, 0, C, t0s, m0x, m0y, &_stack);
+		//float C = c0 + (c1 - c0) * i / nc;
+		float s = semblance_2d(ap, 0, 0, C[i], t0s, m0x, m0y, &_stack);
 		if (s > smax) {
 			smax = s;
-			Copt = C;
+			Copt = C[i];
 			*stack = _stack;
 		}
 		//C += Cconst;
@@ -84,7 +87,14 @@ int main(int argc, char *argv[])
 	FILE *stack = fopen("cmp.stack.su", "w");
 	float progress_max = 1.0f / (HASH_COUNT(cdp_traces) - 1);
 	int k = 0;
-
+	
+	float *Caux;
+        Caux = (float*)malloc(nc*sizeof(float));
+        // C = c0 + (c1 - c0) * i / nc;
+        float cdiff = c1 - c0;
+        for(int i =0; i < nc ; i++){
+                Caux[i] = c0 + (cdiff*i)/nc;
+        }
 	struct cdp_traces *iter;
 	for (iter = cdp_traces; iter; iter = iter->hh.next) {
 		su_trace_t *trs = iter->traces.a;
@@ -112,7 +122,7 @@ int main(int argc, char *argv[])
 		#pragma omp parallel for
 		for (int t0 = 0; t0 < trs[0].ns; t0++) {
 			float sem, stk;
-			float C = getmax_C(&ap, t0, c0, c1, nc, &sem, &stk);
+			float C = getmax_C(&ap, t0, c0, c1, nc, &sem, &stk, Caux);
 			ctr.data[t0] = C;
 			str.data[t0] = sem;
 			stacktr.data[t0] = stk;
