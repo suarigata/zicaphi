@@ -26,16 +26,19 @@ float getmax_C(aperture_t *ap, int t0s, float c0, float c1, int nc, float *sem, 
 	float Copt;
 	float smax = 0;
 	float _stack = 0;
+	//float Cconst = (c1 - c0)  / nc; // XXX strength reduction
+	float m0x, m0y;
+	su_get_midpoint(ap->traces.a[0], &m0x, &m0y); // XXX loop invariant code motion
+	//float C = c0;
 	for (int i = 0; i < nc; i++) {
 		float C = c0 + (c1 - c0) * i / nc;
-		float m0x, m0y;
-		su_get_midpoint(ap->traces.a[0], &m0x, &m0y);
 		float s = semblance_2d(ap, 0, 0, C, t0s, m0x, m0y, &_stack);
 		if (s > smax) {
 			smax = s;
 			Copt = C;
 			*stack = _stack;
 		}
+		//C += Cconst;
 	}
 	if (sem)
 		*sem = smax;
