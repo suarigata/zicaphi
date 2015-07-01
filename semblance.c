@@ -27,9 +27,9 @@ static float time2d(float A, float B, float C, float t0,
 	float _mx = mx - m0x;
 	float _my = my - m0y;
 	float _m2 = _mx*_mx + _my*_my;
-	float t2 = t0 + A * sqrt(_m2);
+	float t2 = t0;// + A * sqrt(_m2);
 	t2 *= t2;
-	t2 += B * _m2;
+	//t2 += B * _m2;
 	t2 += C * (hx*hx + hy*hy);
 	if (t2 < 0)
 		return -1;
@@ -82,8 +82,9 @@ float semblance_2d(aperture_t *ap,
 	memset(&den[0], 0, sizeof(den));
 	int M = 0, skip = 0;
 	float _stack = 0;
-	int teste = ap->traces.len;
-	for (int i = 0; i < teste; i++) {
+	//t0 = t0*t0; // XXX loop invariant code motion
+	//float _mx,_my,_m2,t2,t;
+	for (int i = 0; i < ap->traces.len; i++) {
 		tr = vector_get(ap->traces, i);
 		float mx, my, hx, hy;
 		float a= get_scalco(tr)*0.5;
@@ -98,13 +99,29 @@ float semblance_2d(aperture_t *ap,
 	//	su_get_midpoint(tr, &mx, &my);
 	//	su_get_halfoffset(tr, &hx, &hy);
 		float t = time2d(A, B, C, t0, m0x, m0y, mx, my, hx, hy);
+
+		/*
+		_mx = mx - m0x; // XXX inline
+		_my = my - m0y;
+		_m2 = _mx*_mx + _my*_my;
+		t2 = t0 + C * (hx*hx + hy*hy);
+		t=(t2 < 0)?-1:sqrt(t2);
+		//*/
+		
+		/*
+		float t_idt_tau=t*idt; // common subexpression elimination
+		int it = (int)(t_idt_tau);
+		t_idt_tau-=tau;
+		//*/
 		int it = (int)(t * idt);
+		
 		if (it - tau >= 0 && it + tau < tr->ns) {
 			for (int j = 0; j < w; j++) {
 				int k = it + j - tau;
 				//float v = interpol_linear(k, k+1,
 				//		tr->data[k], tr->data[k+1],
 				//		t*idt + j - tau);
+				//float v=(tr->data[k+1] - tr->data[k]) * (t_idt_tau+j - k) + tr->data[k];
 				float v=(tr->data[k+1] - tr->data[k]) * (t*idt+j-tau - k) + tr->data[k];
 				num[j] += v;
 				den[j] += v*v;
