@@ -11,6 +11,7 @@
 #include <vector.h>
 #include <utils.h>
 #include <interpol.h>
+#include <x86intrin.h>
 
 static float time2d (float A, float B, float C, float t0,
                 float m0x, float m0y,
@@ -31,6 +32,7 @@ static float time2d(float A, float B, float C, float t0,
 	t2 *= t2;
 	//t2 += B * _m2;
 	t2 += C * (hx*hx + hy*hy);
+	//printf("%f\n",t2);
 	if (t2 < 0)
 		return -1;
 	else
@@ -82,46 +84,129 @@ float semblance_2d(aperture_t *ap,
 	memset(&den[0], 0, sizeof(den));
 	int M = 0, skip = 0;
 	float _stack = 0;
-	//t0 = t0*t0; // XXX loop invariant code motion
-	//float _mx,_my,_m2,t2,t;
-	for (int i = 0; i < ap->traces.len; i++) {
-		tr = vector_get(ap->traces, i);
+	
+	float t1 = t0*t0; // XXX loop invariant code motion
+	float _mx,_my,_m2,t2[8],t3[8],t;
+	
+	su_trace_t *trp[8];
+	int ii,i;
+	for (i = 0; i < ap->traces.len-8; i+=8) {
 		float mx, my, hx, hy;
-		float a= get_scalco(tr)*0.5;
-		//float gx = tr->gx;
-		//float gy = tr->gy;
-		//float sx = tr->sx;
-		//float sy = tr->sy;
-		mx=(tr->gx+tr->sx)*a;
-		my=(tr->gy+tr->sy)*a;
-		hx=(tr->gx-tr->sx)*a;
-		hy=(tr->gy-tr->sy)*a;
-	//	su_get_midpoint(tr, &mx, &my);
-	//	su_get_halfoffset(tr, &hx, &hy);
-		float t = time2d(A, B, C, t0, m0x, m0y, mx, my, hx, hy);
-
-		/*
-		_mx = mx - m0x; // XXX inline
-		_my = my - m0y;
-		_m2 = _mx*_mx + _my*_my;
-		t2 = t0 + C * (hx*hx + hy*hy);
-		t=(t2 < 0)?-1:sqrt(t2);
-		//*/
+		float a;
 		
+		for(ii=0;ii<8;ii++){
+			trp[ii] = vector_get(ap->traces, i+ii);
+			a = get_scalco(trp[ii])*0.5;
+			
+			mx=(trp[ii]->gx+trp[ii]->sx)*a;
+			my=(trp[ii]->gy+trp[ii]->sy)*a;
+			hx=(trp[ii]->gx-trp[ii]->sx)*a;
+			hy=(trp[ii]->gy-trp[ii]->sy)*a;
+			
+			_mx = mx - m0x; // XXX inline
+			_my = my - m0y;
+			_m2 = _mx*_mx + _my*_my;
+			t2[ii] = t1 + C * (hx*hx + hy*hy);
+			t3[ii]=0;
+		}
+		//*
+		__m256 raizes;
+		raizes = _mm256_load_ps(t2);
+		raizes = _mm256_sqrt_ps(raizes);
+		_mm256_store_ps(t3,raizes);
+		//*/
 		/*
 		float t_idt_tau=t*idt; // common subexpression elimination
 		int it = (int)(t_idt_tau);
 		t_idt_tau-=tau;
 		//*/
-		int it = (int)(t * idt);
+
+		for(ii=0;ii<8;ii++){
+			t3[ii]=(t2[ii] < 0)?-1:t3[ii];
+			int it = (int)(t3[ii] * idt);
+			if (it - tau >= 0 && it + tau < trp[ii]->ns) {
+				for (int j = 0; j < w; j++) {
+					int k = it + j - tau;
+					//float v=(tr->data[k+1] - tr->data[k]) * (t_idt_tau+j - k) + tr->data[k];
+					float v=(trp[ii]->data[k+1] - trp[ii]->data[k]) * (t3[ii]*idt+j-tau - k) + trp[ii]->data[k];
+					num[j] += v;
+					den[j] += v*v;
+					_stack += v;
+				}
+				M++;
+			} else if (++skip == 2) {
+				goto error;
+			}
+		}
+	}
+	
+	for (; i < ap->traces.len-4; i+=4) {
+		float mx, my, hx, hy;
+		float a;
 		
+		for(ii=0;ii<4;ii++){
+			trp[ii] = vector_get(ap->traces, i+ii);
+			a = get_scalco(trp[ii])*0.5;
+			
+			mx=(trp[ii]->gx+trp[ii]->sx)*a;
+			my=(trp[ii]->gy+trp[ii]->sy)*a;
+			hx=(trp[ii]->gx-trp[ii]->sx)*a;
+			hy=(trp[ii]->gy-trp[ii]->sy)*a;
+			
+			_mx = mx - m0x; // XXX inline
+			_my = my - m0y;
+			_m2 = _mx*_mx + _my*_my;
+			t2[ii] = t1 + C * (hx*hx + hy*hy);
+			t3[ii]=0;
+		}
+		//*
+		__m128 raizes;
+		raizes = _mm_load_ps(t2);
+		raizes = _mm_sqrt_ps(raizes);
+		_mm_store_ps(t3,raizes);
+		//*/
+		/*
+		float t_idt_tau=t*idt; // common subexpression elimination
+		int it = (int)(t_idt_tau);
+		t_idt_tau-=tau;
+		//*/
+
+		for(ii=0;ii<4;ii++){
+			t3[ii]=(t2[ii] < 0)?-1:t3[ii];
+			int it = (int)(t3[ii] * idt);
+			if (it - tau >= 0 && it + tau < trp[ii]->ns) {
+				for (int j = 0; j < w; j++) {
+					int k = it + j - tau;
+					//float v=(tr->data[k+1] - tr->data[k]) * (t_idt_tau+j - k) + tr->data[k];
+					float v=(trp[ii]->data[k+1] - trp[ii]->data[k]) * (t3[ii]*idt+j-tau - k) + trp[ii]->data[k];
+					num[j] += v;
+					den[j] += v*v;
+					_stack += v;
+				}
+				M++;
+			} else if (++skip == 2) {
+				goto error;
+			}
+		}
+	}
+	
+	// peeling
+	for (i; i < ap->traces.len; i++) {
+		tr = vector_get(ap->traces, i);
+		float mx, my, hx, hy;
+		float a= get_scalco(tr)*0.5;
+		
+		mx=(tr->gx+tr->sx)*a;
+		my=(tr->gy+tr->sy)*a;
+		hx=(tr->gx-tr->sx)*a;
+		hy=(tr->gy-tr->sy)*a;
+		
+		float t = time2d(A, B, C, t0, m0x, m0y, mx, my, hx, hy);
+
+		int it = (int)(t * idt);
 		if (it - tau >= 0 && it + tau < tr->ns) {
 			for (int j = 0; j < w; j++) {
 				int k = it + j - tau;
-				//float v = interpol_linear(k, k+1,
-				//		tr->data[k], tr->data[k+1],
-				//		t*idt + j - tau);
-				//float v=(tr->data[k+1] - tr->data[k]) * (t_idt_tau+j - k) + tr->data[k];
 				float v=(tr->data[k+1] - tr->data[k]) * (t*idt+j-tau - k) + tr->data[k];
 				num[j] += v;
 				den[j] += v*v;
