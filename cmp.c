@@ -14,6 +14,7 @@
 #include <semblance.h>
 #include <log.h>
 #include <su.h>
+#include <utils.h>
 
 struct cdp_traces {
 	int cdp;
@@ -32,7 +33,6 @@ float getmax_C(aperture_t *ap, int t0s, float c0, float c1, int nc, float *sem, 
 	//float Cconst = (c1 - c0)  / nc; // XXX strength reduction
 	float m0x, m0y;
 	su_get_midpoint(ap->traces.a[0], &m0x, &m0y); // XXX loop invariant code motion
-	//float C = c0;
 	for (int i = 0; i < nc; i++) {
 		//float C = c0 + (c1 - c0) * i / nc;
 		float s = semblance_2d(ap, 0, 0, C[i], t0s, m0x, m0y, &_stack);
@@ -118,7 +118,10 @@ int main(int argc, char *argv[])
 		vector_init(ap.traces);
 		for (int i = 0; i < iter->traces.len; i++)
 			vector_push(ap.traces, &vector_get(iter->traces, i));
-
+		
+		float m0x, m0y;
+		su_get_midpoint(ap.traces.a[0], &m0x, &m0y); // XXX loop invariant code motion
+		//su_trace_t *tr = vector_get(ap.traces, 0);
 		#pragma omp parallel for
 		for (int t0 = 0; t0 < trs[0].ns; t0++) {
 			float sem, stk;

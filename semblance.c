@@ -99,7 +99,6 @@ float semblance_2d(aperture_t *ap,
 	//	su_get_midpoint(tr, &mx, &my);
 	//	su_get_halfoffset(tr, &hx, &hy);
 		float t = time2d(A, B, C, t0, m0x, m0y, mx, my, hx, hy);
-
 		/*
 		_mx = mx - m0x; // XXX inline
 		_my = my - m0y;
