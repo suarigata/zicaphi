@@ -20,6 +20,6 @@ struct aperture {
 float semblance_2d(aperture_t *ap,
 		float A, float B, float C,
 		int t0s, float m0x, float m0y,
-		float *stack);
+		float *stack, float dt, float idt, int tau, int w);
 
 #endif /* SEMBLANCE_H__ */

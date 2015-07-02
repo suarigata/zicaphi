@@ -22,7 +22,7 @@ struct cdp_traces {
 	UT_hash_handle hh;
 };
 
-float getmax_C(aperture_t *ap, int t0s, float c0, float c1, int nc, float *sem, float *stack, float *C)
+float getmax_C(aperture_t *ap, int t0s, float c0, float c1, int nc, float *sem, float *stack, float *C, float dt, float idt, int tau, int w)
 {
 	float Copt;
 	float smax = 0;
@@ -35,7 +35,7 @@ float getmax_C(aperture_t *ap, int t0s, float c0, float c1, int nc, float *sem, 
 	su_get_midpoint(ap->traces.a[0], &m0x, &m0y); // XXX loop invariant code motion
 	for (int i = 0; i < nc; i++) {
 		//float C = c0 + (c1 - c0) * i / nc;
-		float s = semblance_2d(ap, 0, 0, C[i], t0s, m0x, m0y, &_stack);
+		float s = semblance_2d(ap, 0, 0, C[i], t0s, m0x, m0y, &_stack, dt, idt, tau, w );
 		if (s > smax) {
 			smax = s;
 			Copt = C[i];
@@ -122,10 +122,17 @@ int main(int argc, char *argv[])
 		float m0x, m0y;
 		su_get_midpoint(ap.traces.a[0], &m0x, &m0y); // XXX loop invariant code motion
 		//su_trace_t *tr = vector_get(ap.traces, 0);
+		su_trace_t *tr_2 = vector_get(ap.traces, 0);
 		#pragma omp parallel for
 		for (int t0 = 0; t0 < trs[0].ns; t0++) {
+		//	su_trace_t *tr_2 = vector_get(ap.traces, 0);
+        		float dt = (float) tr_2->dt / 1000000;
+   	     		float idt = 1 / dt;
+   	     	//	float t0 = t0s * dt;
+     		  	int tau_2 = MAX((int)(ap.ap_t * idt), 0);
+       			int w = 2 * tau_2 + 1;
 			float sem, stk;
-			float C = getmax_C(&ap, t0, c0, c1, nc, &sem, &stk, Caux);
+			float C = getmax_C(&ap, t0, c0, c1, nc, &sem, &stk, Caux, dt, idt, tau_2, w);
 			ctr.data[t0] = C;
 			str.data[t0] = sem;
 			stacktr.data[t0] = stk;

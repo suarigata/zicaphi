@@ -69,14 +69,14 @@ float semblance_2d(aperture_t* __restrict ap,
 float semblance_2d(aperture_t *ap,
 		float A, float B, float C,
 		int t0s, float m0x, float m0y,
-		float *stack)
+		float *stack, float dt, float idt, int tau, int w)
 {
-	su_trace_t *tr = vector_get(ap->traces, 0);
-	float dt = (float) tr->dt / 1000000;
-	float idt = 1 / dt;
+	su_trace_t *tr;// = vector_get(ap->traces, 0);
+//	float dt = (float) tr->dt / 1000000;
+//	float idt = 1 / dt;
 	float t0 = t0s * dt;
-	int tau = MAX((int)(ap->ap_t * idt), 0);
-	int w = 2 * tau + 1;
+//	int tau = MAX((int)(ap->ap_t * idt), 0);
+//	int w = 2 * tau + 1;
 	float num[w], den[w];
 	memset(&num[0], 0, sizeof(num));
 	memset(&den[0], 0, sizeof(den));
